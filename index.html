@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trygg - Ta tillbaka din integritet</title>
+    <meta name="description" content="Sveriges fria integritetsverktyg. Raderar dina uppgifter från nätet automatiskt.">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Space+Grotesk:wght@400;700&display=swap" rel="stylesheet">
+    
+    <!-- Libraries -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Three.js for the grass animation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
+    <style>
+        :root {
+            --bg-color: #050505;
+            --glass-bg: rgba(20, 20, 25, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --accent: #fb923c; /* Matchar appens orange */
+            --accent-glow: rgba(251, 146, 60, 0.3);
+            --text-main: #e2e8f0;
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border_box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        /* --- ANIMATION LAYERS --- */
+        #three-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -2; /* Längst bak */
+        }
+
+        #rain-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1; /* Framför 3D-gräset, bakom innehållet */
+            opacity: 0.4; /* Något mer transparent för att se gräset */
+            pointer-events: none;
+        }
+
+        /* --- TYPOGRAPHY --- */
+        h1, h2, h3 {
+            font-family: 'Space Grotesk', sans-serif;
+            line-height: 1.1;
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #fff 0%, var(--text-muted) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .accent-text {
+            color: var(--accent);
+        }
+
+        /* --- LAYOUT & CONTAINERS --- */
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* --- HEADER & NAV --- */
+        header {
+            padding: 20px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            background: rgba(5, 5, 5, 0.5);
+            backdrop-filter: blur(10px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+            font-size: 1.2rem;
+            letter-spacing: -0.02em;
+        }
+
+        nav {
+            display: flex;
+            gap: 25px;
+        }
+
+        nav a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+
+        nav a:hover {
+            color: var(--accent);
+        }
+
+        nav a.github-link {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: #fff;
+        }
+
+        /* --- HERO SECTION --- */
+        .hero {
+            padding: 100px 0 60px;
+            text-align: center;
+        }
+
+        .hero h1 {
+            font-size: clamp(2.5rem, 5vw, 4.5rem);
+            margin-bottom: 20px;
+            text-shadow: 0 0 30px rgba(255,255,255,0.1);
+        }
+
+        .hero p.subtitle {
+            font-size: clamp(1.1rem, 2vw, 1.3rem);
+            color: var(--text-muted);
+            max-width: 600px;
+            margin: 0 auto 40px;
+            line-height: 1.6;
+        }
+
+        .price-comparison {
+            display: inline-block;
+            background: rgba(251, 146, 60, 0.1);
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            padding: 8px 16px;
+            border-radius: 50px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 30px;
+            box-shadow: 0 0 20px var(--accent-glow);
+            animation: pulse 3s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(251, 146, 60, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(251, 146, 60, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(251, 146, 60, 0); }
+        }
+
+        /* --- SCREENSHOT MOCKUP --- */
+        .app-preview {
+            margin: 50px auto;
+            max-width: 900px;
+            background: #0a0a0a;
+            border-radius: 12px;
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .window-bar {
+            background: #1a1a1a;
+            padding: 10px 15px;
+            display: flex;
+            gap: 8px;
+            border-bottom: 1px solid #333;
+        }
+        
+        .dot { width: 12px; height: 12px; border-radius: 50%; }
+        .red { background: #ff5f56; }
+        .yellow { background: #ffbd2e; }
+        .green { background: #27c93f; }
+
+        /* Placeholder for screenshot */
+        .screenshot-placeholder {
+            width: 100%;
+            height: 500px;
+            background: linear-gradient(to bottom right, #1a1a1a, #0d0d0d);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #333;
+            font-family: 'Space Grotesk';
+            font-size: 1.5rem;
+            position: relative;
+        }
+        
+        .screenshot-img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        /* --- DOWNLOAD SECTION --- */
+        .download-section {
+            padding: 40px 0 80px;
+            text-align: center;
+            scroll-margin-top: 100px; /* Förhindrar att headern täcker titeln vid scroll */
+        }
+
+        .os-grid {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-top: 30px;
+        }
+
+        .download-btn {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            padding: 15px 30px;
+            border-radius: 12px;
+            color: white;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            min-width: 200px;
+        }
+
+        .download-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+            border-color: var(--accent);
+        }
+        
+        .download-btn.primary {
+            background: var(--accent);
+            color: #000;
+            border: none;
+        }
+        
+        .download-btn.primary:hover {
+            background: #f97316;
+            box-shadow: 0 0 20px var(--accent-glow);
+        }
+
+        /* --- WARNING BOX --- */
+        .trust-box {
+            max-width: 700px;
+            margin: 40px auto 0;
+            background: rgba(255, 200, 0, 0.05);
+            border: 1px solid rgba(255, 200, 0, 0.2);
+            padding: 20px;
+            border-radius: 8px;
+            text-align: left;
+            font-size: 0.9rem;
+            display: flex;
+            gap: 15px;
+        }
+
+        .trust-box i {
+            color: #fbbf24;
+            flex-shrink: 0;
+        }
+
+        .trust-box p {
+            color: #d1d5db;
+            line-height: 1.5;
+        }
+
+        .trust-box strong {
+            color: #fff;
+        }
+
+        /* --- FEATURES --- */
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin: 80px 0;
+        }
+
+        .feature-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            padding: 30px;
+            border-radius: 16px;
+            transition: transform 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(255,255,255,0.2);
+        }
+
+        .feature-icon {
+            width: 48px;
+            height: 48px;
+            background: rgba(251, 146, 60, 0.1);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--accent);
+            margin-bottom: 20px;
+        }
+
+        .feature-card h3 {
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+        }
+
+        .feature-card p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+
+        footer {
+            padding: 40px 0;
+            text-align: center;
+            color: #555;
+            font-size: 0.8rem;
+            border-top: 1px solid #111;
+            position: relative;
+            z-index: 10;
+            background-color: var(--bg-color);
+        }
+        
+        footer a {
+            color: #777;
+            text-decoration: none;
+            margin: 0 10px;
+        }
+        
+        footer a:hover { color: var(--accent); }
+
+        /* Mobile adjustments */
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 2.5rem; }
+            .trust-box { flex-direction: column; }
+            .download-btn { width: 100%; }
+            nav { display: none; } /* Dölj meny på väldigt små skärmar för enkelhet */
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Animated Backgrounds -->
+    <div id="three-container"></div>
+    <canvas id="rain-canvas"></canvas>
+
+    <div class="container">
+        <header>
+            <div class="logo">
+                <i data-lucide="shield" style="color: var(--accent)"></i>
+                <span>TRYGG</span>
+            </div>
+            <nav>
+                <a href="#start">Start</a>
+                <a href="#download">Ladda ner</a>
+                <a href="https://github.com/Bjorn12341234/Trygg2" target="_blank" class="github-link">
+                    <i data-lucide="github" width="16"></i> Källkod
+                </a>
+            </nav>
+        </header>
+
+        <!-- Start Section -->
+        <section id="start" class="hero">
+            <div class="price-comparison">
+                Helt gratis. Helt öppen källkod.
+            </div>
+            
+            <h1>Ta tillbaka din <span class="gradient-text">integritet.</span></h1>
+            <p class="subtitle">
+                Datanissarna tjänar miljoner på att sälja din adress. Giriga företag tar betalt för att ta bort dina uppgifter från nätet. 
+                <br><br>
+                <span style="color: #fff; font-weight: 500;">Trygg är gratis, säkert och lokalt.</span>
+            </p>
+
+            <div class="app-preview">
+                <div class="window-bar">
+                    <div class="dot red"></div>
+                    <div class="dot yellow"></div>
+                    <div class="dot green"></div>
+                </div>
+                <!-- ERSÄTT DENNA BILD MED EN SKÄRMDUMP FRÅN DIN APP -->
+                <!-- <img src="screenshot.png" alt="Trygg Dashboard" class="screenshot-img"> -->
+                
+                <!-- Placeholder tills du lägger in bild -->
+                <div class="screenshot-placeholder">
+                    <div style="text-align: center;">
+                        <i data-lucide="activity" size="48" style="color: var(--accent); margin-bottom: 1rem;"></i>
+                        <br>
+                        [ DASHBOARD SCREENSHOT HÄR ]
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Download Section -->
+        <section id="download" class="download-section">
+            <h2>Ladda ner Trygg <span class="accent-text">v0.9.0</span></h2>
+            <p style="color: var(--text-muted); margin-top: 10px; margin-bottom: 30px;">Ingen installation av Python krävs. Bara ladda ner och kör.</p>
+            
+            <div class="os-grid">
+                <!-- VIKTIGT: Ersätt href med länkar till dina GitHub Releases -->
+                <a href="ERSÄTT_MED_LÄNK_TILL_EXE" class="download-btn primary">
+                    <i data-lucide="monitor"></i> Windows (.exe)
+                </a>
+                <a href="ERSÄTT_MED_LÄNK_TILL_DMG" class="download-btn">
+                    <i data-lucide="apple"></i> macOS (.dmg)
+                </a>
+                <a href="ERSÄTT_MED_LÄNK_TILL_DEB" class="download-btn">
+                    <i data-lucide="terminal"></i> Linux (.deb)
+                </a>
+            </div>
+
+            <div class="trust-box">
+                <i data-lucide="alert-triangle" size="24"></i>
+                <div>
+                    <strong>Angående "Okänd utgivare"-varning:</strong>
+                    <p>Eftersom Trygg är ett gratis open-source projekt har vi inte köpt dyra signerings-certifikat från Microsoft eller Apple än. Din dator kan därför varna när du installerar. Detta är normalt för open source.</p>
+                    <p style="margin-top: 10px; font-size: 0.85rem;">Windows: Klicka <em>"Mer info"</em> -> <em>"Kör ändå"</em>.<br>macOS: Högerklicka på filen och välj <em>"Öppna"</em>.</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="features">
+            <div class="feature-card">
+                <div class="feature-icon"><i data-lucide="lock"></i></div>
+                <h3>100% Lokal Data</h3>
+                <p>Dina personuppgifter lämnar aldrig din enhet. Ingen molnserver, ingen databas hos oss. Du äger din data.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon"><i data-lucide="zap"></i></div>
+                <h3>BankID-automation</h3>
+                <p>Trygg automatiserar processen mot sajter som Ratsit och Merinfo. Skanna QR-koden, sen sköter roboten resten.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon"><i data-lucide="code"></i></div>
+                <h3>Öppen Källkod</h3>
+                <p>Lita inte på ord. Lita på koden. Allt finns öppet på GitHub för granskning. Inga dolda bakdörrar.</p>
+            </div>
+        </section>
+
+        <footer>
+            <p>&copy; 2025 Trygg. Byggt för rätten till privatliv.</p>
+            <br>
+            <a href="#">GitHub</a>
+            <a href="#">Licens (MIT)</a>
+            <a href="#">Integritetspolicy</a>
+        </footer>
+    </div>
+
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // --- THREE.JS ANIMATION (The Grass/Fiber Effect) ---
+        // Converted from React to Vanilla JS
+        (function initThree() {
+            const container = document.getElementById('three-container');
+            let mouseX = 0;
+
+            // Scene Setup
+            const scene = new THREE.Scene();
+            // Warm fog to fade out the distance (matches CSS bg-color)
+            scene.fog = new THREE.FogExp2(0x050505, 0.03); 
+
+            const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+            camera.position.set(0, 3, 15);
+            camera.lookAt(0, 0, 0);
+
+            const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            container.appendChild(renderer.domElement);
+
+            // --- THE GRASS / FIBER GEOMETRY ---
+            const grassCount = 6000;
+            const geometry = new THREE.BufferGeometry();
+            const positions = [];
+            const colors = [];
+            
+            const baseColor = new THREE.Color(0x331100); // Dark base
+            const tipColor = new THREE.Color(0xfb923c);  // Orange/Gold tip
+
+            for (let i = 0; i < grassCount; i++) {
+                // X/Z Position on the ground
+                const x = (Math.random() - 0.5) * 50;
+                const z = (Math.random() - 0.5) * 40 - 5; 
+
+                // Height of the strand
+                const height = 1.5 + Math.random() * 2.5;
+
+                // Point 1 (Base)
+                positions.push(x, -2, z);
+                colors.push(baseColor.r, baseColor.g, baseColor.b);
+
+                // Point 2 (Tip)
+                positions.push(x, -2 + height, z);
+                colors.push(tipColor.r, tipColor.g, tipColor.b);
+            }
+
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+            
+            // Material
+            const material = new THREE.LineBasicMaterial({
+                vertexColors: true,
+                linewidth: 1,
+                opacity: 0.6,
+                transparent: true,
+                blending: THREE.AdditiveBlending
+            });
+
+            const grassSystem = new THREE.LineSegments(geometry, material);
+            scene.add(grassSystem);
+            
+            const originalPositions = geometry.attributes.position.array.slice();
+
+            // --- INTERACTION ---
+            const handleMouseMove = (e) => {
+                mouseX = (e.clientX / window.innerWidth) * 2 - 1;
+            };
+            document.addEventListener('mousemove', handleMouseMove);
+
+            // --- ANIMATION LOOP ---
+            const clock = new THREE.Clock();
+            
+            const animateThree = () => {
+                const time = clock.getElapsedTime();
+                const positions = geometry.attributes.position.array;
+
+                // Animate the TIP of each blade (every 2nd vertex)
+                for (let i = 1; i < grassCount * 2; i += 2) {
+                    const index = i * 3; // x, y, z index
+                    
+                    // Get original X/Z to calculate noise
+                    const origX = originalPositions[index];
+                    const origZ = originalPositions[index + 2];
+
+                    // Wind calculation
+                    const windX = Math.sin(time * 0.5 + origX * 0.5) * 0.5;
+                    const windZ = Math.cos(time * 0.3 + origZ * 0.5) * 0.5;
+
+                    // Mouse Repulsion
+                    const targetX = mouseX * 15;
+                    const targetZ = 5; 
+                    
+                    const dx = origX - targetX;
+                    const dz = origZ - targetZ;
+                    const dist = Math.sqrt(dx * dx + dz * dz);
+                    
+                    let pushX = 0;
+                    let pushZ = 0;
+
+                    // If mouse is close, push away
+                    if (dist < 8) {
+                        const force = (8 - dist) / 8;
+                        pushX = (dx / dist) * force * 2;
+                        pushZ = (dz / dist) * force * 2;
+                    }
+
+                    // Apply changes
+                    positions[index] = origX + windX + pushX; 
+                    positions[index + 2] = origZ + windZ + pushZ; 
+                }
+
+                geometry.attributes.position.needsUpdate = true;
+                
+                // Subtle camera sway
+                camera.position.x = Math.sin(time * 0.1) * 0.5;
+                camera.lookAt(0, -1, 0);
+
+                renderer.render(scene, camera);
+                requestAnimationFrame(animateThree);
+            };
+
+            animateThree();
+
+            // Handle Resize
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        })();
+
+        // --- REALISTIC RAIN EFFECT (Canvas 2D) ---
+        (function initRain() {
+            const canvas = document.getElementById('rain-canvas');
+            const ctx = canvas.getContext('2d');
+
+            let width, height;
+            let drops = [];
+
+            function resize() {
+                width = canvas.width = window.innerWidth;
+                height = canvas.height = window.innerHeight;
+            }
+            window.addEventListener('resize', resize);
+            resize();
+
+            class Drop {
+                constructor() {
+                    this.reset(true);
+                }
+
+                reset(initial = false) {
+                    this.x = Math.random() * width;
+                    this.y = initial ? Math.random() * height : -20;
+                    this.z = Math.random() * 0.5 + 0.5; // Depth factor
+                    this.len = (Math.random() * 10 + 10) * this.z;
+                    this.speed = (Math.random() * 5 + 5) * this.z;
+                    this.opacity = Math.random() * 0.3 + 0.1;
+                }
+
+                update() {
+                    this.y += this.speed;
+                    if (this.y > height) {
+                        this.reset();
+                    }
+                }
+
+                draw() {
+                    ctx.beginPath();
+                    ctx.moveTo(this.x, this.y);
+                    ctx.lineTo(this.x, this.y + this.len);
+                    // Rain color matches theme
+                    ctx.strokeStyle = `rgba(170, 190, 210, ${this.opacity * this.z})`; 
+                    ctx.lineWidth = 1 * this.z;
+                    ctx.stroke();
+                }
+            }
+
+            // Create drops
+            const dropCount = 300;
+            for (let i = 0; i < dropCount; i++) {
+                drops.push(new Drop());
+            }
+
+            function animateRain() {
+                ctx.clearRect(0, 0, width, height);
+                drops.forEach(drop => {
+                    drop.update();
+                    drop.draw();
+                });
+                requestAnimationFrame(animateRain);
+            }
+
+            animateRain();
+        })();
+    </script>
+</body>
+</html>
